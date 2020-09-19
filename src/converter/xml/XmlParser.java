@@ -33,6 +33,7 @@ public class XmlParser {
     private final Matcher openTagMatcher = OPEN_TAG_PATTERN.matcher("");
     private final Matcher closeTagMatcher = CLOSE_TAG_PATTERN.matcher("");
     private final Matcher[] tagMatchers = {emptyElementMatcher, valueElementMatcher, openTagMatcher, closeTagMatcher};
+    private final Matcher[] attrMatchers = {doubleQuoteAttrMatcher, singleQuoteAttrMatcher};
 
     public Xml parse(String source) {
         resetMatchers(source);
@@ -64,7 +65,7 @@ public class XmlParser {
                 }
             }
             if (matcher != null) {
-                moveRegion(matcher.end(), matcher.regionEnd());
+                moveRegion(matcher.end(), matcher.regionEnd(), tagMatchers);
             }
         } while (matcher != null);
         throw new IllegalArgumentException("Bad format!");
@@ -73,7 +74,7 @@ public class XmlParser {
     private void skipXmlProlog(String source) {
         if (prologMatcher.reset(source).lookingAt()) {
             final int xmlPrologEnd = prologMatcher.end();
-            moveRegion(xmlPrologEnd, prologMatcher.regionEnd());
+            moveRegion(xmlPrologEnd, prologMatcher.regionEnd(), tagMatchers);
         }
     }
 
@@ -103,8 +104,8 @@ public class XmlParser {
         }
     }
 
-    private void moveRegion(int start, int end) {
-        for (Matcher matcher : tagMatchers) {
+    private void moveRegion(int start, int end, Matcher[] matchers) {
+        for (Matcher matcher : matchers) {
             matcher.region(start, end);
         }
     }
@@ -120,7 +121,7 @@ public class XmlParser {
         final Map<String, String> attributes = new LinkedHashMap<>();
         do {
             attributes.put(matcher.group("name"), matcher.group("value"));
-            matcher.region(matcher.end(), matcher.regionEnd());
+            moveRegion(matcher.end(), matcher.regionEnd(), attrMatchers);
             matcher = doubleQuoteAttrMatcher.lookingAt() ? doubleQuoteAttrMatcher :
                     (singleQuoteAttrMatcher.lookingAt() ? singleQuoteAttrMatcher : null);
         } while (matcher != null);
